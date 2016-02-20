@@ -1,20 +1,10 @@
-var Ball, Brick, Debris, Explosion, ExplosiveBrick, Physics, Player, ball, blockSize, bricks, bricksLeft, canvas, completeLevel, context, d, debris, delayers, destroyBrick, draw, dt, explosions, levelup, lightcanvas, lightcontext, lights, mouseDown, mouseXY, mx, paused, physics, player, setupBricks, shake, startTime, stats,
+var Ball, Brick, BricksManager, Debris, Explosion, ExplosiveBrick, Physics, Player, ball, bricks, canvas, cleanGarbage, context, debris, draw, dt, explosions, lighting, mouseDown, mouseXY, mx, paused, physics, player, shake, stats,
   extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   hasProp = {}.hasOwnProperty;
-
-levelup = null;
 
 canvas = null;
 
 context = null;
-
-lightcanvas = null;
-
-lightcontext = null;
-
-d = null;
-
-startTime = null;
 
 paused = false;
 
@@ -22,21 +12,11 @@ mx = 0;
 
 dt = 0.3;
 
-bricks = [];
-
 debris = [];
 
 explosions = [];
 
-delayers = [];
-
-lights = [];
-
 shake = 0;
-
-blockSize = 6;
-
-bricksLeft = 0;
 
 player = null;
 
@@ -45,6 +25,134 @@ ball = null;
 stats = null;
 
 physics = null;
+
+lighting = null;
+
+bricks = null;
+
+cleanGarbage = function(collection, isDead) {
+  var i, j, k, ref, ref1, removers;
+  removers = [];
+  for (i = j = 0, ref = collection.length - 1; j <= ref; i = j += 1) {
+    if (isDead(collection[i])) {
+      removers.push(collection[i]);
+    }
+  }
+  for (i = k = 0, ref1 = removers.length - 1; k <= ref1; i = k += 1) {
+    collection.splice(collection.indexOf(removers[i]), 1);
+  }
+  return collection;
+};
+
+BricksManager = (function() {
+  function BricksManager(blockSize1) {
+    this.blockSize = blockSize1;
+    this.bricksLeft = 0;
+    this.bricks = [];
+    this.bricksToKill = [];
+  }
+
+  BricksManager.prototype.setup = function() {
+    var gap, j, results, x, y;
+    gap = this.blockSize * 2 + 3;
+    results = [];
+    for (x = j = 3; j <= 18; x = j += 1) {
+      results.push((function() {
+        var k, results1;
+        results1 = [];
+        for (y = k = 3; k <= 14; y = k += 1) {
+          if (x !== 13 && x !== 8 && y !== 8 && y !== 9) {
+            this.bricksLeft++;
+            if (Math.random() < 0.2) {
+              results1.push(this.bricks.push(new ExplosiveBrick(x * gap, y * gap, this.blockSize)));
+            } else {
+              results1.push(this.bricks.push(new Brick(x * gap, y * gap, this.blockSize)));
+            }
+          } else {
+            results1.push(void 0);
+          }
+        }
+        return results1;
+      }).call(this));
+    }
+    return results;
+  };
+
+  BricksManager.prototype.killBrick = function(brick, source, delay) {
+    var brickObj;
+    brickObj = [];
+    brickObj.source = source;
+    brickObj.brick = brick;
+    brickObj.delay = delay;
+    this.bricksToKill.push(brickObj);
+    return brick.markedForDeath = true;
+  };
+
+  BricksManager.prototype.update = function() {
+    var b, b2, btk, collision, dist, i, j, k, l, n, ref, ref1, ref2;
+    for (i = j = 0, ref = this.bricks.length - 1; j <= ref; i = j += 1) {
+      b = this.bricks[i];
+      b.draw(this.blockSize);
+      collision = physics.ballIntercept(ball, b, ball.vx * dt, ball.vy * dt);
+      if (collision !== null) {
+        if (collision.d === "left" || collision.d === "right") {
+          ball.x = collision.x;
+          ball.vx = -ball.vx;
+        }
+        if (collision.d === "top" || collision.d === "bottom") {
+          ball.y = collision.y;
+          ball.vy = -ball.vy;
+        }
+        this.killBrick(b, ball, 0);
+      }
+    }
+    for (i = k = 0, ref1 = this.bricksToKill.length - 1; k <= ref1; i = k += 1) {
+      btk = this.bricksToKill[i];
+      btk.delay--;
+      if (btk.delay <= 0) {
+        this.destroyBrick(btk);
+        if (btk.brick instanceof ExplosiveBrick) {
+          b = btk.brick;
+          shake += 5;
+          explosions.push(new Explosion(b.x, b.y));
+          for (n = l = 0, ref2 = this.bricks.length - 1; l <= ref2; n = l += 1) {
+            if (n !== i) {
+              b2 = this.bricks[n];
+              if (!b2.markedForDeath) {
+                dist = distance(b.x, b.y, b2.x, b2.y);
+                if (dist < 50 && random(0, 1) < 0.5) {
+                  this.killBrick(b2, b, Math.round(dist * 0.4));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return this.bricksToKill = cleanGarbage(this.bricksToKill, (function(a) {
+      return a.delay <= 0;
+    }));
+  };
+
+  BricksManager.prototype.destroyBrick = function(remover) {
+    var angle, i, j, k, n, ref, vx, vy;
+    for (i = j = 0, ref = this.bricks.length - 1; j <= ref; i = j += 1) {
+      if (this.bricks[i] === remover.brick) {
+        this.bricks.splice(i, 1);
+      }
+    }
+    angle = Math.atan2(remover.brick.y - remover.source.y, remover.brick.x - remover.source.x);
+    for (n = k = 0; k <= 4; n = k += 1) {
+      vx = Math.cos(angle) * 20 + random(-5, 5);
+      vy = Math.sin(angle) * 20 + random(-5, 5);
+      debris.push(new Debris(remover.brick.x + random(-this.blockSize, this.blockSize), remover.brick.y + random(-this.blockSize, this.blockSize), vx, vy));
+    }
+    return this.bricksLeft--;
+  };
+
+  return BricksManager;
+
+})();
 
 Player = (function() {
   function Player() {
@@ -122,11 +230,9 @@ Ball = (function() {
   }
 
   Ball.prototype.draw = function() {
-    if (paused === false) {
-      this.x += this.vx * dt;
-      this.y += this.vy * dt;
-    }
-    context.fillStyle = '#fff';
+    context.fillStyle = "white";
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
     return solidCircle(context, this.x, this.y, this.radius);
   };
 
@@ -135,7 +241,7 @@ Ball = (function() {
 })();
 
 Brick = (function() {
-  function Brick(x5, y5) {
+  function Brick(x5, y5, blockSize) {
     this.x = x5;
     this.y = y5;
     this.dark = 0;
@@ -146,13 +252,15 @@ Brick = (function() {
     this.width = blockSize;
     this.height = blockSize;
     this.glow = 0;
+    this.type = "brick";
+    this.markedForDeath = false;
   }
 
   Brick.prototype.incDark = function(dist) {
     return this.dark += Math.round(255 / (dist * 0.1));
   };
 
-  Brick.prototype.draw = function() {
+  Brick.prototype.draw = function(blockSize) {
     context.fillStyle = 'rgba(' + this.dark + ',' + this.dark + ',' + (this.dark + 1) + ',1.0)';
     context.beginPath();
     context.rect(this.left, this.top, blockSize * 2, blockSize * 2);
@@ -167,26 +275,27 @@ Brick = (function() {
 ExplosiveBrick = (function(superClass) {
   extend(ExplosiveBrick, superClass);
 
-  function ExplosiveBrick(x5, y5) {
+  function ExplosiveBrick(x5, y5, blockSize) {
     this.x = x5;
     this.y = y5;
-    ExplosiveBrick.__super__.constructor.call(this, this.x, this.y);
-    this.count = 0;
+    ExplosiveBrick.__super__.constructor.call(this, this.x, this.y, blockSize);
+    this.count = Math.random() * 3;
     this.gradient = context.createRadialGradient(0, 0, 8, 0, 0, 40);
     this.gradient.addColorStop(0, 'rgba(255,220,160,0.1)');
     this.gradient.addColorStop(0.4, 'rgba(200,20,20,0.05)');
     this.gradient.addColorStop(1, 'rgba(0,0,0,0.0)');
+    this.type = "explosive";
   }
 
   ExplosiveBrick.prototype.drawGlow = function() {
-    lightcontext.fillStyle = this.gradient;
-    lightcontext.save();
-    lightcontext.translate(this.x, this.y);
-    solidCircle(lightcontext, 0, 0, 40);
-    return lightcontext.restore();
+    lighting.context.fillStyle = this.gradient;
+    lighting.context.save();
+    lighting.context.translate(this.x, this.y);
+    solidCircle(lighting.context, 0, 0, 40);
+    return lighting.context.restore();
   };
 
-  ExplosiveBrick.prototype.draw = function() {
+  ExplosiveBrick.prototype.draw = function(blockSize) {
     var pulse;
     this.count += 0.1;
     pulse = Math.round(Math.sin(this.count) * 50);
@@ -216,52 +325,15 @@ Explosion = (function() {
   Explosion.prototype.draw = function() {
     this.life += 2.0;
     context.lineWidth = 2.0;
-    context.strokeStyle = 'rgba(255,255,255,' + (1.0 - (this.life * 0.02)) + ')';
-    return strokedCircle(context, this.x, this.y, this.life);
+    context.strokeStyle = 'rgba(255,' + (255 - this.life * 3) + ',0,' + (1.0 - (this.life * 0.02)) + ')';
+    context.fillStyle = 'rgba(255,' + (255 - this.life * 3) + ',0,' + (0.5 - (this.life * 0.01)) + ')';
+    strokedCircle(context, this.x, this.y, this.life);
+    return solidCircle(context, this.x, this.y, this.life);
   };
 
   return Explosion;
 
 })();
-
-completeLevel = function() {
-  $(levelup).css('opacity', '1.0');
-  return $(levelup).css('left', '0px');
-};
-
-mouseXY = function(e) {
-  return mx = e.pageX;
-};
-
-mouseDown = function(e) {
-  return e.preventDefault();
-};
-
-setupBricks = function() {
-  var gap, j, results, x, y;
-  gap = blockSize * 2 + 3;
-  results = [];
-  for (x = j = 3; j <= 18; x = j += 1) {
-    results.push((function() {
-      var k, results1;
-      results1 = [];
-      for (y = k = 3; k <= 14; y = k += 1) {
-        if (x !== 13 && x !== 8 && y !== 8 && y !== 9) {
-          bricksLeft++;
-          if (Math.random() < 0.2) {
-            results1.push(bricks.push(new ExplosiveBrick(x * gap, y * gap)));
-          } else {
-            results1.push(bricks.push(new Brick(x * gap, y * gap)));
-          }
-        } else {
-          results1.push(void 0);
-        }
-      }
-      return results1;
-    })());
-  }
-  return results;
-};
 
 Physics = (function() {
   var intercept;
@@ -326,95 +398,28 @@ Physics = (function() {
 
 })();
 
-destroyBrick = function(brick, source) {
-  var angle, i, j, k, n, ref, vx, vy;
-  for (i = j = 0, ref = bricks.length - 1; j <= ref; i = j += 1) {
-    if (bricks[i] === brick) {
-      bricks.splice(i, 1);
-    }
-  }
-  angle = Math.atan2(brick.y - source.y, brick.x - source.x);
-  for (n = k = 0; k <= 4; n = k += 1) {
-    vx = Math.cos(angle) * 20 + random(-5, 5);
-    vy = Math.sin(angle) * 20 + random(-5, 5);
-    debris.push(new Debris(brick.x + random(-blockSize, blockSize), brick.y + random(-blockSize, blockSize), vx, vy));
-  }
-  bricksLeft--;
-  if (bricksLeft === 0) {
-    completeLevel();
-    return paused = true;
-  }
+mouseXY = function(e) {
+  return mx = e.pageX;
+};
+
+mouseDown = function(e) {
+  return e.preventDefault();
 };
 
 draw = function() {
-  var a, b, b2, collision, dist, dremovers, i, j, k, l, m, n, o, p, paddleCollision, q, r, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, rem, removers, s;
+  var i, j, k, paddleCollision, ref, ref1;
+  webkitRequestAnimationFrame(draw);
   stats.begin();
   context.fillStyle = 'rgba(0,0,0,1.0)';
   context.fillRect(0, 0, 320, 568);
   if (shake > 0) {
-    $('canvas').css('margin-left', random(-shake, shake) + 'px');
-    $('canvas').css('margin-top', random(-shake, shake) + 'px');
+    canvas.style.marginLeft = random(-shake, shake) + 'px';
+    canvas.style.marginTop = random(-shake, shake) + 'px';
     shake--;
   }
-  light();
-  context.drawImage(lightcanvas, 0, 0);
-  removers = [];
-  dremovers = [];
-  for (i = j = 0, ref = delayers.length - 1; j <= ref; i = j += 1) {
-    delayers[i].delay--;
-    if (delayers[i].delay <= 0) {
-      rem = [];
-      rem.source = delayers[i].source;
-      rem.brick = delayers[i].brick;
-      removers.push(rem);
-      dremovers.push(delayers[i]);
-    }
-  }
-  for (i = k = 0, ref1 = dremovers.length - 1; k <= ref1; i = k += 1) {
-    delayers.splice(delayers.indexOf(dremovers[i]), 1);
-  }
-  for (i = l = 0, ref2 = bricks.length - 1; l <= ref2; i = l += 1) {
-    b = bricks[i];
-    b.draw();
-    collision = physics.ballIntercept(ball, b, ball.vx * dt, ball.vy * dt);
-    if (collision !== null) {
-      if (collision.d === "left" || collision.d === "right") {
-        ball.x = collision.x;
-        ball.vx = -ball.vx;
-      }
-      if (collision.d === "top" || collision.d === "bottom") {
-        ball.y = collision.y;
-        ball.vy = -ball.vy;
-      }
-      rem = [];
-      rem.source = ball;
-      rem.brick = b;
-      removers.push(rem);
-      if (bricks[i] instanceof ExplosiveBrick) {
-        shake += 5;
-        explosions.push(new Explosion(b.x, b.y));
-        for (n = m = 0, ref3 = bricks.length - 1; m <= ref3; n = m += 1) {
-          if (n !== i) {
-            b2 = bricks[n];
-            if (Math.random() < 1.0) {
-              dist = distance(b.x, b.y, b2.x, b2.y);
-              if (dist < 50) {
-                rem = [];
-                rem.delay = Math.round(dist * 0.4);
-                rem.source = b;
-                rem.brick = b2;
-                delayers.push(rem);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  for (i = o = 0, ref4 = removers.length - 1; o <= ref4; i = o += 1) {
-    a = removers[i].brick;
-    destroyBrick(a, removers[i].source);
-  }
+  lighting.light(bricks.bricks);
+  context.drawImage(lighting.canvas, 0, 0);
+  bricks.update();
   physics.wallCollision();
   paddleCollision = physics.ballIntercept(ball, player, ball.vx * dt, ball.vy * dt);
   if (paddleCollision !== null) {
@@ -423,49 +428,37 @@ draw = function() {
     ball.vx += player.vx * 0.01;
   }
   ball.draw();
-  lights[0].x = ball.x;
-  lights[0].y = ball.y;
+  lighting.lights[0].x = ball.x;
+  lighting.lights[0].y = ball.y;
   player.draw();
-  removers = [];
-  for (i = p = 0, ref5 = debris.length - 1; p <= ref5; i = p += 1) {
+  for (i = j = 0, ref = debris.length - 1; j <= ref; i = j += 1) {
     debris[i].draw();
-    if (debris[i].y > 568) {
-      removers.push(i);
-    }
   }
-  for (i = q = 0, ref6 = removers.length - 1; q <= ref6; i = q += 1) {
-    debris.splice(removers[i], 1);
-  }
-  removers = [];
-  for (i = r = 0, ref7 = explosions.length - 1; r <= ref7; i = r += 1) {
+  debris = cleanGarbage(debris, (function(a) {
+    return a.y > 568;
+  }));
+  for (i = k = 0, ref1 = explosions.length - 1; k <= ref1; i = k += 1) {
     explosions[i].draw();
-    if (explosions[i].life >= 50) {
-      removers.push(explosions[i]);
-    }
   }
-  for (i = s = 0, ref8 = removers.length - 1; s <= ref8; i = s += 1) {
-    explosions.splice(explosions.indexOf(removers[i]), 1);
-  }
+  explosions = cleanGarbage(explosions, (function(a) {
+    return a.life > 50;
+  }));
   return stats.end();
 };
 
 window.onload = function() {
+  var levelup;
   levelup = document.getElementById('levelup');
   canvas = document.getElementById('canvas');
   context = canvas.getContext('2d');
   context.lineJoin = "round";
-  lightcanvas = document.createElement('canvas');
-  lightcontext = lightcanvas.getContext('2d');
-  lightcontext.lineCap = 'square';
-  lightcanvas.width = 320;
-  lightcanvas.height = 568;
-  d = new Date();
-  startTime = d.getTime();
+  lighting = new Lighting();
   player = new Player();
   ball = new Ball();
   physics = new Physics();
-  lights.push(new LightSource(ball.x, ball.y, 100));
-  setupBricks();
+  bricks = new BricksManager(6);
+  lighting.initLights();
+  bricks.setup();
   stats = new Stats();
   stats.setMode(0);
   document.body.appendChild(stats.domElement);
@@ -473,5 +466,5 @@ window.onload = function() {
   canvas.addEventListener("mousemove", mouseXY, true);
   canvas.addEventListener("touchmove", mouseXY, true);
   canvas.addEventListener("mousedown", mouseDown, false);
-  return setInterval(draw, 1000 / 30);
+  return draw();
 };

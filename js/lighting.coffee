@@ -1,13 +1,16 @@
 class LightSource
-	constructor: (@x, @y, @radius) ->
+	constructor: (@x, @y, @radius, color) ->
 		@tempcanvas = document.createElement('canvas')
 		@tempcontext = @tempcanvas.getContext('2d')
-		@tempcanvas.width = lightcanvas.width;
-		@tempcanvas.height = lightcanvas.height;
+		@tempcanvas.width = lighting.canvas.width;
+		@tempcanvas.height = lighting.canvas.height;
 		@gradient = context.createRadialGradient(0,0,10, 0,0, @radius);
+
+
 		@gradient.addColorStop(0, 'rgba(255,220,160,1.0)');
 		@gradient.addColorStop(0.3, 'rgba(160,200,250,0.5)');
 		@gradient.addColorStop(1, 'rgba(0,0,0,0.0)');
+
 
 	draw: () ->
 		@tempcontext.clearRect(0,0,320,568);
@@ -18,18 +21,35 @@ class LightSource
 		@tempcontext.restore();
 
 
-calculateCorners = ( source, center, limit, dist, ctx) ->
+class Lighting
+	constructor: () ->
+		@canvas = document.createElement('canvas')
+		@context = @canvas.getContext('2d')
+		@context.lineCap = 'square'
+		@canvas.width = 320;
+		@canvas.height = 568;
+		@lights = []
 
-	if( dist < limit)
-		left = center.left;
-		right = center.right;
-		top = center.top;
-		bottom = center.bottom;
+	initLights: () ->
+		@lights.push new LightSource( 0, -1000, 100 )
+		@lights.push new LightSource( 0, 0, 200 )
+		# @lights.push new LightSource( 60,  650, 150, "red" )
+		# @lights.push new LightSource( 160 ,650, 150, "red" )
+		# @lights.push new LightSource( 260 ,650, 150, "red" )
+
+
+	calculateCorners: ( source, center, limit, dist, ctx) ->
+
+		if( dist > limit)
+			return
+
+		left = center.left
+		right = center.right
+		top = center.top
+		bottom = center.bottom
 		angle = Math.atan2( center.y - source.y, center.x - source.x)
 		ctx.strokeStyle = 'rgba(255,255,255,' + 1.0 / (dist*0.05) + ')'
-		ctx.lineWidth = 15.0 / (dist*0.2);
-
-		#console.log( center.x, center.y, center.width )
+		ctx.lineWidth = 15.0 / (dist*0.2)
 
 		if( source.y < center.y and Math.abs(center.x - source.x) < center.width)
 			ex = left
@@ -95,6 +115,10 @@ calculateCorners = ( source, center, limit, dist, ctx) ->
 		fx1 = source.x + Math.cos( newangle1 ) * limit
 		fy1 = source.y + Math.sin( newangle1 ) * limit
 
+		drawShadow( ctx, ex, ey, ex1, ey1, fx1, fy1, fx, fy )
+
+
+	drawShadow = ( ctx, ex, ey, ex1, ey1, fx1, fy1, fx, fy ) ->
 		ctx.beginPath()
 		ctx.moveTo(ex, ey);
 		ctx.lineTo(ex1,ey1)
@@ -108,30 +132,31 @@ calculateCorners = ( source, center, limit, dist, ctx) ->
 		ctx.fillStyle = '#000'
 		ctx.fill()
 
+	light: ( bricks ) ->
 
-light = () ->
+		lighting.context.clearRect(0,0,320,568)
+		lighting.context.globalCompositeOperation = "lighter"
 
-	lightcontext.clearRect(0,0,320,568)
-	lightcontext.globalCompositeOperation = "lighter"
+		for i in [0..@lights.length-1] by 1
+			con = @lights[i].tempcontext;
+			@lights[i].draw();
 
-	for i in [0..lights.length-1] by 1
-		con = lights[i].tempcontext;
-		lights[i].draw();
+			dist = distance(ball.x,ball.y,player.x,player.y)
+			@calculateCorners( @lights[0], player, 1500, dist, con );
 
-		dist = distance(ball.x,ball.y,player.x,player.y)
-		calculateCorners( lights[0], player, 1500, dist, con );
 
-		for n in [0..bricks.length-1] by 1
-			o = bricks[n]
-			dist = distance(o.x, o.y, lights[i].x, lights[i].y)
-			o.incDark( dist );
-			calculateCorners( lights[i], o, lights[i].radius, distance( o.x, o.y, lights[i].x, lights[i].y), con);
+			for n in [0..bricks.length-1] by 1
+				o = bricks[n]
+				if(o.type == "brick")
+					dist = distance( o.x, o.y, @lights[i].x, @lights[i].y )
+					o.incDark( dist );
+					@calculateCorners( @lights[i], o, @lights[i].radius, distance( o.x, o.y, @lights[i].x, @lights[i].y), con);
 
-		for n in [0..debris.length-1] by 1
-			debris[n].incDark( distance( debris[n].x, debris[n].y, lights[i].x, lights[i].y))
+			for n in [0..debris.length-1] by 1
+				debris[n].incDark( distance( debris[n].x, debris[n].y, @lights[i].x, @lights[i].y))
 
-		lightcontext.drawImage( lights[i].tempcanvas, 0, 0 )
+			lighting.context.drawImage( @lights[i].tempcanvas, 0, 0 )
 
-		# for i in [0..bricks.length-1] by 1
-		# 	if( bricks[i] instanceof ExplosiveBrick)
-		# 		bricks[i].drawGlow();
+			# for i in [0..bricks.length-1] by 1
+			# 	if( bricks[i] instanceof ExplosiveBrick)
+			# 		bricks[i].drawGlow();
