@@ -1,7 +1,7 @@
 var Renderer;
 
 Renderer = (function() {
-  var line, solidCircle, strokedCircle, windowHeight, windowWidth;
+  var line, make, rgba, solidCircle, strokedCircle, windowHeight, windowWidth;
 
   windowWidth = 320;
 
@@ -24,6 +24,20 @@ Renderer = (function() {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI, false);
     return ctx.stroke();
+  };
+
+  make = function(x) {
+    if (x < 0) {
+      x = 0;
+    }
+    return x;
+  };
+
+  rgba = function(r, g, b, a) {
+    if (a === void 0) {
+      a = 1.0;
+    }
+    return 'rgba(' + Math.round(make(r)) + ',' + Math.round(make(g)) + ',' + Math.round(make(b)) + ',' + a + ')';
   };
 
   function Renderer(canvas, w, h) {
@@ -88,26 +102,26 @@ Renderer = (function() {
     return this.context.drawImage(this.lightcanvas, 0, 0);
   };
 
-  Renderer.prototype.drawShadow = function(i, dist, a, b, fb, fa, c) {
-    this.lightsources[i].context.strokeStyle = 'rgba(255,255,255,' + 1.0 / (dist * 0.05) + ')';
-    this.lightsources[i].context.fillStyle = 'rgba(255,255,255,' + 1.0 / (dist * 0.05) + ')';
-    this.lightsources[i].context.lineWidth = 15.0 / (dist * 0.2);
-    if (c.x !== void 0) {
-      line(this.lightsources[i].context, a.x, a.y, c.x, c.y);
-      line(this.lightsources[i].context, b.x, b.y, c.x, c.y);
-      solidCircle(this.lightsources[i].context, c.x, c.y, this.lightsources[i].context.lineWidth / 2);
+  Renderer.prototype.drawShadow = function(i, s) {
+    this.lightsources[i].context.strokeStyle = 'rgba(255,255,255,' + 1.0 / (s.dist * 0.05) + ')';
+    this.lightsources[i].context.fillStyle = 'rgba(255,255,255,' + 1.0 / (s.dist * 0.05) + ')';
+    this.lightsources[i].context.lineWidth = 15.0 / (s.dist * 0.2);
+    if (s.cornerC.x !== void 0) {
+      line(this.lightsources[i].context, s.cornerA.x, s.cornerA.y, s.cornerC.x, s.cornerC.y);
+      line(this.lightsources[i].context, s.cornerB.x, s.cornerB.y, s.cornerC.x, s.cornerC.y);
+      solidCircle(this.lightsources[i].context, s.cornerC.x, s.cornerC.y, this.lightsources[i].context.lineWidth / 2);
     } else {
-      line(this.lightsources[i].context, a.x, a.y, b.x, b.y);
+      line(this.lightsources[i].context, s.cornerA.x, s.cornerA.y, s.cornerB.x, s.cornerB.y);
     }
     this.lightsources[i].context.fillStyle = '#000';
     this.lightsources[i].context.beginPath();
-    this.lightsources[i].context.moveTo(a.x, a.y);
-    if (c !== void 0) {
-      this.lightsources[i].context.lineTo(c.x, c.y);
+    this.lightsources[i].context.moveTo(s.cornerA.x, s.cornerA.y);
+    if (s.cornerC !== void 0) {
+      this.lightsources[i].context.lineTo(s.cornerC.x, s.cornerC.y);
     }
-    this.lightsources[i].context.lineTo(b.x, b.y);
-    this.lightsources[i].context.lineTo(fb.x, fb.y);
-    this.lightsources[i].context.lineTo(fa.x, fa.y);
+    this.lightsources[i].context.lineTo(s.cornerB.x, s.cornerB.y);
+    this.lightsources[i].context.lineTo(s.cornerFarB.x, s.cornerFarB.y);
+    this.lightsources[i].context.lineTo(s.cornerFarA.x, s.cornerFarA.y);
     return this.lightsources[i].context.fill();
   };
 
@@ -124,7 +138,7 @@ Renderer = (function() {
   };
 
   Renderer.prototype.drawBrick = function(type, left, top, size, dark, count) {
-    var bottom, pulse, right;
+    var bottom, p, right;
     if (type === "brick") {
       this.context.fillStyle = 'rgba(' + dark + ',' + (dark + 5) + ',' + (dark + 5) + ',1.0)';
       this.context.beginPath();
@@ -132,12 +146,12 @@ Renderer = (function() {
       this.context.fill();
     }
     if (type === "explosive") {
-      pulse = Math.round(Math.sin(count) * 50);
+      p = Math.round(Math.sin(count) * 10);
       right = left + size * 2;
       bottom = top + size * 2;
-      this.context.strokeStyle = 'rgba(' + (200 + dark + pulse) + ',' + (100 + dark + pulse) + ',' + (dark + pulse) + ',0.4)';
+      this.context.strokeStyle = rgba(10 + dark * 3 + p, dark * 1.5, dark * 0.0);
+      this.context.fillStyle = rgba(10 + dark * 1.5, dark * 0.75, dark * 0.1);
       this.context.lineWidth = 2.0;
-      this.context.fillStyle = 'rgba(' + (100 + dark) + ',' + (0 + dark) + ',' + (dark + 1) + ',1.0)';
       this.context.beginPath();
       this.context.rect(left, top, size * 2, size * 2);
       this.context.fill();
@@ -156,7 +170,7 @@ Renderer = (function() {
   };
 
   Renderer.prototype.drawDebris = function(x, y, radius, angle, dark) {
-    this.context.fillStyle = 'rgba(' + dark + ',' + (dark + 5) + ',' + (dark + 5) + ',1.0)';
+    this.context.fillStyle = rgba(dark, dark + 5, dark + 5);
     this.context.beginPath();
     this.context.save();
     this.context.translate(x, y);

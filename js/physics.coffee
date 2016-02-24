@@ -4,7 +4,7 @@ class Physics
 	width = 320
 
 	constructor: (w,h) ->
-		width = w - 100
+		width = w
 
 	ballIntercept = (bal, rec, nx, ny) ->
 		pt = null;

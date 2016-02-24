@@ -19,6 +19,15 @@ class Renderer
 		ctx.arc x, y, r, 0, 2*Math.PI, false
 		ctx.stroke()
 
+	make = (x) ->
+		if( x < 0 )
+			x = 0
+		return x
+
+	rgba = (r,g,b,a) ->
+		if( a == undefined )
+			a = 1.0
+		return 'rgba(' + Math.round(make(r)) + ',' + Math.round(make(g)) + ',' + Math.round(make(b)) + ',' + a + ')'
 
 	constructor: ( canvas, w, h ) ->
 
@@ -54,6 +63,9 @@ class Renderer
 			canvas.width = windowWidth;
 			canvas.height = windowHeight
 			@lightsources.push( { canvas: canvas, context: context } )
+			# context.globalAlpha = lights[i].lum
+
+
 
 
 	drawBackground: () ->
@@ -78,30 +90,31 @@ class Renderer
 
 		@context.drawImage( @lightcanvas, 0, 0)
 
-	drawShadow: ( i, dist, a, b, fb, fa, c ) ->
+	# drawShadow: ( i, dist, a, b, fb, fa, c ) ->
+	drawShadow: ( i, s ) ->
 
-		@lightsources[i].context.strokeStyle = 'rgba(255,255,255,' + 1.0 / (dist*0.05) + ')'
-		@lightsources[i].context.fillStyle = 'rgba(255,255,255,' + 1.0 / (dist*0.05) + ')'
-		@lightsources[i].context.lineWidth = 15.0 / (dist*0.2)
+		@lightsources[i].context.strokeStyle = 'rgba(255,255,255,' + 1.0 / (s.dist*0.05) + ')'
+		@lightsources[i].context.fillStyle = 'rgba(255,255,255,' + 1.0 / (s.dist*0.05) + ')'
+		@lightsources[i].context.lineWidth = 15.0 / (s.dist*0.2)
 
-		if( c.x != undefined )
-			line( @lightsources[i].context, a.x, a.y, c.x, c.y )
-			line( @lightsources[i].context, b.x, b.y, c.x, c.y )
-			solidCircle( @lightsources[i].context, c.x, c.y, @lightsources[i].context.lineWidth/2 )
+		if( s.cornerC.x != undefined )
+			line( @lightsources[i].context, s.cornerA.x, s.cornerA.y, s.cornerC.x, s.cornerC.y )
+			line( @lightsources[i].context, s.cornerB.x, s.cornerB.y, s.cornerC.x, s.cornerC.y )
+			solidCircle( @lightsources[i].context, s.cornerC.x, s.cornerC.y, @lightsources[i].context.lineWidth/2 )
 		else
-			line( @lightsources[i].context, a.x, a.y, b.x, b.y )
+			line( @lightsources[i].context, s.cornerA.x, s.cornerA.y, s.cornerB.x, s.cornerB.y )
 
 
 		# draw shadow
 
 		@lightsources[i].context.fillStyle = '#000'
 		@lightsources[i].context.beginPath()
-		@lightsources[i].context.moveTo(a.x, a.y);
-		if( c != undefined )
-			@lightsources[i].context.lineTo(c.x, c.y);
-		@lightsources[i].context.lineTo(b.x, b.y)
-		@lightsources[i].context.lineTo(fb.x,fb.y)
-		@lightsources[i].context.lineTo(fa.x,fa.y)
+		@lightsources[i].context.moveTo(s.cornerA.x, s.cornerA.y);
+		if( s.cornerC != undefined )
+			@lightsources[i].context.lineTo(s.cornerC.x, s.cornerC.y);
+		@lightsources[i].context.lineTo(s.cornerB.x, s.cornerB.y)
+		@lightsources[i].context.lineTo(s.cornerFarB.x,s.cornerFarB.y)
+		@lightsources[i].context.lineTo(s.cornerFarA.x,s.cornerFarA.y)
 		@lightsources[i].context.fill()
 
 	drawBall : (x,y,r) ->
@@ -114,7 +127,7 @@ class Renderer
 		@context.rect( x - w, y - h/2, w*2, h)
 		@context.fill();
 
-	drawBrick : (type,left,top,size,dark, count) ->
+	drawBrick : (type,left,top,size,dark,count) ->
 		if(type == "brick")
 			@context.fillStyle = 'rgba(' + dark + ',' + (dark+5) + ',' + (dark+5) + ',1.0)'
 			@context.beginPath();
@@ -122,13 +135,15 @@ class Renderer
 			@context.fill();
 
 		if(type == "explosive")
-			pulse = Math.round(Math.sin(count) * 50);
+			p = Math.round(Math.sin(count) * 10 )
+			# p = 0
 			right = left+size*2
 			bottom = top+size*2
 
-			@context.strokeStyle = 'rgba(' + (200 + dark + pulse) + ',' + (100 + dark + pulse) + ',' + (dark + pulse) + ',0.4)'
+			@context.strokeStyle = rgba( 10+dark*3+p , dark*1.5   , dark*0.0 )
+			@context.fillStyle   = rgba( 10+dark*1.5 , dark*0.75  , dark*0.1 )
 			@context.lineWidth = 2.0;
-			@context.fillStyle = 'rgba(' + (100 + dark) + ',' + (0 + dark) + ',' + (dark+1) + ',1.0)'
+
 			@context.beginPath();
 			@context.rect(left, top, size*2, size*2 )
 			@context.fill();
@@ -144,7 +159,7 @@ class Renderer
 		solidCircle( @context, x, y, life )
 
 	drawDebris: ( x, y, radius, angle, dark ) ->
-		@context.fillStyle = 'rgba(' + dark + ',' + (dark+5) + ',' + (dark+5) + ',1.0)'
+		@context.fillStyle = rgba( dark, dark+5, dark+5 )
 		@context.beginPath();
 		@context.save();
 		@context.translate( x, y )

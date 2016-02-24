@@ -32,10 +32,10 @@ class Game
 		canvas = document.getElementById('canvas')
 
 		lighting = new Lighting()
-		renderer = new Renderer( canvas, 600, 600 )
+		renderer = new Renderer( canvas, 400, 600 )
 		player = new Player();
 		ball = new Ball();
-		physics = new Physics( 600, 600 );
+		physics = new Physics( 400, 600 );
 		bricks = new BricksManager( 6 )
 		debris = new DebrisManager()
 		explosions = new ExplosionsManager()
@@ -53,7 +53,7 @@ class Game
 		canvas.addEventListener("touchmove", mouseXY, true)
 		canvas.addEventListener("mousedown", mouseDown, false )
 
-	draw: () ->
+	update: () ->
 
 		stats.begin();
 
@@ -64,10 +64,10 @@ class Game
 
 		renderer.drawBackground()
 
-		if(shake > 0)
-			canvas.style.marginLeft = Math.randomFloat(-shake,shake) + 'px'
-			canvas.style.marginTop = Math.randomFloat(-shake,shake) + 'px'
-			shake-=0.5;
+		# if(shake > 0)
+		# 	canvas.style.marginLeft = Math.randomFloat(-shake,shake) + 'px'
+		# 	canvas.style.marginTop = Math.randomFloat(-shake,shake) + 'px'
+		# 	shake-=0.5;
 
 		lighting.drawLights( renderer )
 		lighting.addShadowsToLights( renderer, player, bricks.collection, debris.collection )
@@ -98,9 +98,6 @@ class Game
 		explosions.update()
 		explosions.draw( renderer )
 
-
-		document.getElementById("debug").innerHTML = "" + (dt)
-		# td = Date.now()
 		stats.end();
 
 	addExplosion: (x,y) ->
@@ -164,9 +161,9 @@ class BricksManager extends Manager
 	setup: () ->
 		gap = @blockSize * 2 + 3
 
-		for x in [3..18] by 1
+		for x in [3..24] by 1
 			for y in [3..14] by 1
-				if(x != 13 and x != 8 and y != 8 and y != 9)
+				if(x % 6 != 0 && x % 6 != 1 )
 					@brickCount++;
 					if( Math.randomFloat(0,1) < 0.2 )
 						@collection.push new ExplosiveBrick( x * gap, y * gap, @blockSize )
@@ -187,8 +184,8 @@ class BricksManager extends Manager
 	draw: ( renderer ) ->
 		for i in [0..@collection.length-1] by 1
 			b = @collection[i]
-			renderer.drawBrick( b.type, b.left, b.top, @blockSize, b.dark, b.count )
-			b.dark = 0
+			renderer.drawBrick( b.type, b.left, b.top, @blockSize, b.highlight, b.count )
+			b.highlight = 0
 
 	destroyBrick: ( remover ) ->
 		for i in [0..@collection.length-1] by 1
@@ -250,8 +247,8 @@ class DebrisManager extends Manager
 	draw: ( renderer )->
 		for i in [0..@collection.length-1] by 1
 			e = @collection[i]
-			renderer.drawDebris( e.x, e.y, e.radius, e.angle, e.dark )
-			e.dark = 10
+			renderer.drawDebris( e.x, e.y, e.radius, e.angle, e.highlight )
+			e.highlight = 10
 
 
 
@@ -279,12 +276,13 @@ class Player
 class Debris
 	constructor: (@x, @y, @vx, @vy) ->
 		@radius = Math.randomFloat(0,4)
-		@dark = 10;
+		@highlight = 10;
 		@vr = Math.randomFloat(-222, 222)
 		@angle = 0;
 
-	incDark: ( dist ) ->
-		@dark += Math.round(255 / (dist*0.1));
+
+	incHighlight: ( h ) ->
+		@highlight += h;
 
 	update: ( dt ) ->
 		@x += (@vx*dt);
@@ -302,16 +300,19 @@ class Debris
 		# 	@vx += player.vx * 0.5;
 
 class Ball
+
+	speedMod = 1.0
+
 	constructor: () ->
 		@x = 200;
 		@y = 400;
-		@vx = 10.0;
-		@vy = -20.0;
+		@vx = -10.0;
+		@vy = -30.0;
 		@radius = 5;
 
 	update: ( dt ) ->
-		@x += @vx * dt;
-		@y += @vy * dt;
+		@x += @vx * dt * speedMod;
+		@y += @vy * dt * speedMod;
 
 	draw: ( renderer ) ->
 		renderer.drawBall( @x, @y, @radius )
@@ -327,22 +328,20 @@ class Ball
 
 class Brick
 	constructor:( @x, @y, blockSize ) ->
-		@dark = 0;
+		@highlight = 0;
 		@left = @x-blockSize;
 		@right = @x+blockSize;
 		@top = @y-blockSize;
 		@bottom = @y+blockSize;
 		@width = blockSize;
 		@height = blockSize;
-		@glow = 0;
 		@type = "brick"
 		@markedForDeath = false
 
 	update: () ->
 
-
-	incDark: ( dist ) ->
-		@dark += Math.round(255 / (dist*0.1));
+	incHighlight: ( h ) ->
+		@highlight += h;
 
 class ExplosiveBrick extends Brick
 	constructor:(@x, @y, blockSize) ->
@@ -368,7 +367,7 @@ mouseDown = (e) ->
 
 draw = () ->
 	webkitRequestAnimationFrame( draw )
-	game.draw()
+	game.update()
 
 
 window.onload = ->

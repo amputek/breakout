@@ -44,10 +44,10 @@ Game = (function() {
     td = Date.now();
     canvas = document.getElementById('canvas');
     lighting = new Lighting();
-    renderer = new Renderer(canvas, 600, 600);
+    renderer = new Renderer(canvas, 400, 600);
     player = new Player();
     ball = new Ball();
-    physics = new Physics(600, 600);
+    physics = new Physics(400, 600);
     bricks = new BricksManager(6);
     debris = new DebrisManager();
     explosions = new ExplosionsManager();
@@ -63,18 +63,13 @@ Game = (function() {
     canvas.addEventListener("mousedown", mouseDown, false);
   }
 
-  Game.prototype.draw = function() {
+  Game.prototype.update = function() {
     var newTime;
     stats.begin();
     newTime = Date.now();
     dt = (newTime - currentTime) / 100;
     currentTime = newTime;
     renderer.drawBackground();
-    if (shake > 0) {
-      canvas.style.marginLeft = Math.randomFloat(-shake, shake) + 'px';
-      canvas.style.marginTop = Math.randomFloat(-shake, shake) + 'px';
-      shake -= 0.5;
-    }
     lighting.drawLights(renderer);
     lighting.addShadowsToLights(renderer, player, bricks.collection, debris.collection);
     lighting.draw(renderer);
@@ -93,7 +88,6 @@ Game = (function() {
     debris.draw(renderer);
     explosions.update();
     explosions.draw(renderer);
-    document.getElementById("debug").innerHTML = "" + dt;
     return stats.end();
   };
 
@@ -193,12 +187,12 @@ BricksManager = (function(superClass) {
     var gap, j, results, x, y;
     gap = this.blockSize * 2 + 3;
     results = [];
-    for (x = j = 3; j <= 18; x = j += 1) {
+    for (x = j = 3; j <= 24; x = j += 1) {
       results.push((function() {
         var k, results1;
         results1 = [];
         for (y = k = 3; k <= 14; y = k += 1) {
-          if (x !== 13 && x !== 8 && y !== 8 && y !== 9) {
+          if (x % 6 !== 0 && x % 6 !== 1) {
             this.brickCount++;
             if (Math.randomFloat(0, 1) < 0.2) {
               results1.push(this.collection.push(new ExplosiveBrick(x * gap, y * gap, this.blockSize)));
@@ -220,8 +214,8 @@ BricksManager = (function(superClass) {
     results = [];
     for (i = j = 0, ref = this.collection.length - 1; j <= ref; i = j += 1) {
       b = this.collection[i];
-      renderer.drawBrick(b.type, b.left, b.top, this.blockSize, b.dark, b.count);
-      results.push(b.dark = 0);
+      renderer.drawBrick(b.type, b.left, b.top, this.blockSize, b.highlight, b.count);
+      results.push(b.highlight = 0);
     }
     return results;
   };
@@ -332,8 +326,8 @@ DebrisManager = (function(superClass) {
     results = [];
     for (i = j = 0, ref = this.collection.length - 1; j <= ref; i = j += 1) {
       e = this.collection[i];
-      renderer.drawDebris(e.x, e.y, e.radius, e.angle, e.dark);
-      results.push(e.dark = 10);
+      renderer.drawDebris(e.x, e.y, e.radius, e.angle, e.highlight);
+      results.push(e.highlight = 10);
     }
     return results;
   };
@@ -377,13 +371,13 @@ Debris = (function() {
     this.vx = vx1;
     this.vy = vy1;
     this.radius = Math.randomFloat(0, 4);
-    this.dark = 10;
+    this.highlight = 10;
     this.vr = Math.randomFloat(-222, 222);
     this.angle = 0;
   }
 
-  Debris.prototype.incDark = function(dist) {
-    return this.dark += Math.round(255 / (dist * 0.1));
+  Debris.prototype.incHighlight = function(h) {
+    return this.highlight += h;
   };
 
   Debris.prototype.update = function(dt) {
@@ -400,17 +394,21 @@ Debris = (function() {
 })();
 
 Ball = (function() {
+  var speedMod;
+
+  speedMod = 1.0;
+
   function Ball() {
     this.x = 200;
     this.y = 400;
-    this.vx = 10.0;
-    this.vy = -20.0;
+    this.vx = -10.0;
+    this.vy = -30.0;
     this.radius = 5;
   }
 
   Ball.prototype.update = function(dt) {
-    this.x += this.vx * dt;
-    return this.y += this.vy * dt;
+    this.x += this.vx * dt * speedMod;
+    return this.y += this.vy * dt * speedMod;
   };
 
   Ball.prototype.draw = function(renderer) {
@@ -436,22 +434,21 @@ Brick = (function() {
   function Brick(x1, y1, blockSize) {
     this.x = x1;
     this.y = y1;
-    this.dark = 0;
+    this.highlight = 0;
     this.left = this.x - blockSize;
     this.right = this.x + blockSize;
     this.top = this.y - blockSize;
     this.bottom = this.y + blockSize;
     this.width = blockSize;
     this.height = blockSize;
-    this.glow = 0;
     this.type = "brick";
     this.markedForDeath = false;
   }
 
   Brick.prototype.update = function() {};
 
-  Brick.prototype.incDark = function(dist) {
-    return this.dark += Math.round(255 / (dist * 0.1));
+  Brick.prototype.incHighlight = function(h) {
+    return this.highlight += h;
   };
 
   return Brick;
@@ -501,7 +498,7 @@ mouseDown = function(e) {
 
 draw = function() {
   webkitRequestAnimationFrame(draw);
-  return game.draw();
+  return game.update();
 };
 
 window.onload = function() {

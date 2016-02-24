@@ -6,7 +6,7 @@ Physics = (function() {
   width = 320;
 
   function Physics(w, h) {
-    width = w - 100;
+    width = w;
   }
 
   ballIntercept = function(bal, rec, nx, ny) {

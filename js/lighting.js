@@ -1,158 +1,162 @@
-var LightSource, Lighting;
+var LightSource, Lighting, Shadow;
 
 LightSource = (function() {
-  function LightSource(x, y, radius) {
+  function LightSource(x, y, radius, lum1) {
     this.x = x;
     this.y = y;
     this.radius = radius;
+    this.lum = lum1;
+    this.count = Math.randomFloat(0, 4);
   }
 
   return LightSource;
 
 })();
 
+Shadow = (function() {
+  function Shadow(source, object, optionalLimit) {
+    var angle, bottom, left, limit, newangle, newangle1, right, top;
+    this.dist = Math.distance(source, object);
+    left = object.left;
+    right = object.right;
+    top = object.top;
+    bottom = object.bottom;
+    angle = Math.atan2(object.y - source.y, object.x - source.x);
+    this.cornerA = {
+      x: 0,
+      y: 0
+    };
+    this.cornerB = {
+      x: 0,
+      y: 0
+    };
+    this.cornerC = {};
+    if (source.y < object.y && Math.abs(object.x - source.x) < object.width) {
+      this.cornerA = {
+        x: object.left,
+        y: object.top
+      };
+      this.cornerB = {
+        x: object.right,
+        y: object.top
+      };
+    } else if (source.y > object.y && Math.abs(object.x - source.x) < object.width) {
+      this.cornerA = {
+        x: object.left,
+        y: object.bottom
+      };
+      this.cornerB = {
+        x: object.right,
+        y: object.bottom
+      };
+    } else if (source.x < object.x && Math.abs(object.y - source.y) < object.height) {
+      this.cornerA = {
+        x: object.left,
+        y: object.bottom
+      };
+      this.cornerB = {
+        x: object.left,
+        y: object.top
+      };
+    } else if (source.x > object.x && Math.abs(object.y - source.y) < object.height) {
+      this.cornerA = {
+        x: object.right,
+        y: object.bottom
+      };
+      this.cornerB = {
+        x: object.right,
+        y: object.top
+      };
+    } else if (angle > 0 && angle < Math.PI / 2) {
+      this.cornerA = {
+        x: object.left,
+        y: object.bottom
+      };
+      this.cornerB = {
+        x: object.right,
+        y: object.top
+      };
+      this.cornerC = {
+        x: object.left,
+        y: object.top
+      };
+    } else if (angle > Math.PI / 2 && angle < Math.PI) {
+      this.cornerA = {
+        x: object.left,
+        y: object.top
+      };
+      this.cornerB = {
+        x: object.right,
+        y: object.bottom
+      };
+      this.cornerC = {
+        x: object.right,
+        y: object.top
+      };
+    } else if (angle > -Math.PI && angle < -Math.PI / 2) {
+      this.cornerA = {
+        x: object.right,
+        y: object.top
+      };
+      this.cornerB = {
+        x: object.left,
+        y: object.bottom
+      };
+      this.cornerC = {
+        x: object.right,
+        y: object.bottom
+      };
+    } else if (angle > -Math.PI / 2 && angle < 0) {
+      this.cornerA = {
+        x: object.right,
+        y: object.bottom
+      };
+      this.cornerB = {
+        x: object.left,
+        y: object.top
+      };
+      this.cornerC = {
+        x: object.left,
+        y: object.bottom
+      };
+    }
+    limit = optionalLimit || source.radius;
+    newangle = Math.angle(this.cornerA, source);
+    this.cornerFarA = {
+      x: source.x + Math.cos(newangle) * limit,
+      y: source.y + Math.sin(newangle) * limit
+    };
+    newangle1 = Math.angle(this.cornerB, source);
+    this.cornerFarB = {
+      x: source.x + Math.cos(newangle1) * limit,
+      y: source.y + Math.sin(newangle1) * limit
+    };
+  }
+
+  return Shadow;
+
+})();
+
 Lighting = (function() {
-  var getShadowShape;
+  var generateHighlight, withinRange;
 
   function Lighting() {
     this.lights = [];
   }
 
   Lighting.prototype.initLights = function() {
-    return this.lights.push(new LightSource(0, -1000, 100));
-  };
-
-  getShadowShape = function(source, object) {
-    var angle, bottom, cornerA, cornerB, cornerC, cornerFarA, cornerFarB, dist, left, newangle, newangle1, right, top;
-    dist = Math.distance(source, object);
-    if (dist > source.radius) {
-      return null;
-    }
-    left = object.left;
-    right = object.right;
-    top = object.top;
-    bottom = object.bottom;
-    angle = Math.atan2(object.y - source.y, object.x - source.x);
-    cornerA = {
-      x: 0,
-      y: 0
-    };
-    cornerB = {
-      x: 0,
-      y: 0
-    };
-    cornerC = {};
-    if (source.y < object.y && Math.abs(object.x - source.x) < object.width) {
-      cornerA = {
-        x: object.left,
-        y: object.top
-      };
-      cornerB = {
-        x: object.right,
-        y: object.top
-      };
-    } else if (source.y > object.y && Math.abs(object.x - source.x) < object.width) {
-      cornerA = {
-        x: object.left,
-        y: object.bottom
-      };
-      cornerB = {
-        x: object.right,
-        y: object.bottom
-      };
-    } else if (source.x < object.x && Math.abs(object.y - source.y) < object.height) {
-      cornerA = {
-        x: object.left,
-        y: object.bottom
-      };
-      cornerB = {
-        x: object.left,
-        y: object.top
-      };
-    } else if (source.x > object.x && Math.abs(object.y - source.y) < object.height) {
-      cornerA = {
-        x: object.right,
-        y: object.bottom
-      };
-      cornerB = {
-        x: object.right,
-        y: object.top
-      };
-    } else if (angle > 0 && angle < Math.PI / 2) {
-      cornerA = {
-        x: object.left,
-        y: object.bottom
-      };
-      cornerB = {
-        x: object.right,
-        y: object.top
-      };
-      cornerC = {
-        x: object.left,
-        y: object.top
-      };
-    } else if (angle > Math.PI / 2 && angle < Math.PI) {
-      cornerA = {
-        x: object.left,
-        y: object.top
-      };
-      cornerB = {
-        x: object.right,
-        y: object.bottom
-      };
-      cornerC = {
-        x: object.right,
-        y: object.top
-      };
-    } else if (angle > -Math.PI && angle < -Math.PI / 2) {
-      cornerA = {
-        x: object.right,
-        y: object.top
-      };
-      cornerB = {
-        x: object.left,
-        y: object.bottom
-      };
-      cornerC = {
-        x: object.right,
-        y: object.bottom
-      };
-    } else if (angle > -Math.PI / 2 && angle < 0) {
-      cornerA = {
-        x: object.right,
-        y: object.bottom
-      };
-      cornerB = {
-        x: object.left,
-        y: object.top
-      };
-      cornerC = {
-        x: object.left,
-        y: object.bottom
-      };
-    }
-    newangle = Math.angle(cornerA, source);
-    cornerFarA = {
-      x: source.x + Math.cos(newangle) * source.radius,
-      y: source.y + Math.sin(newangle) * source.radius
-    };
-    newangle1 = Math.angle(cornerB, source);
-    cornerFarB = {
-      x: source.x + Math.cos(newangle1) * source.radius,
-      y: source.y + Math.sin(newangle1) * source.radius
-    };
-    return {
-      dist: dist,
-      cornerA: cornerA,
-      cornerB: cornerB,
-      cornerFarB: cornerFarB,
-      cornerFarA: cornerFarA,
-      cornerC: cornerC
-    };
+    return this.lights.push(new LightSource(0, -1000, 100, 1.0));
   };
 
   Lighting.prototype.draw = function(renderer) {
-    return renderer.drawLight(this.lights);
+    var i, j, ref, results;
+    renderer.drawLight(this.lights);
+    results = [];
+    for (i = j = 1, ref = this.lights.length - 1; j <= ref; i = j += 1) {
+      this.lights[i].count += 0.1;
+      results.push(this.lights[i].radius = 180 + Math.sin(this.lights[i].count) * 50);
+    }
+    return results;
   };
 
   Lighting.prototype.drawLights = function(renderer) {
@@ -160,36 +164,42 @@ Lighting = (function() {
     results = [];
     for (i = j = 0, ref = this.lights.length - 1; j <= ref; i = j += 1) {
       l = this.lights[i];
-      results.push(renderer.drawLightGlow(i, l.x, l.y, l.radius));
+      results.push(renderer.drawLightGlow(i, l.x, l.y, l.radius, l.lum));
     }
     return results;
   };
 
+  withinRange = function(source, object) {
+    return Math.distance(source, object) < source.radius;
+  };
+
+  generateHighlight = function(source, object, lum) {
+    return Math.round(lum * (1.0 - (Math.distance(source, object) / source.radius)));
+  };
+
   Lighting.prototype.addShadowsToLights = function(renderer, player, bricks, debris) {
-    var dist, i, j, k, n, o, ref, ref1, results, s;
+    var brick, i, j, k, light, n, ref, ref1, results;
     results = [];
     for (i = j = 0, ref = this.lights.length - 1; j <= ref; i = j += 1) {
-      s = getShadowShape(this.lights[i], player);
-      if (s !== null) {
-        renderer.drawShadow(i, s.dist, s.cornerA, s.cornerB, s.cornerFarB, s.cornerFarA, s.cornerC);
+      light = this.lights[i];
+      if (withinRange(light, player)) {
+        renderer.drawShadow(i, new Shadow(light, player, 1500));
       }
       for (n = k = 0, ref1 = bricks.length - 1; k <= ref1; n = k += 1) {
-        o = bricks[n];
-        dist = Math.distance(o, this.lights[i]);
-        o.incDark(dist);
-        s = getShadowShape(this.lights[i], o);
-        if (s !== null) {
-          renderer.drawShadow(i, s.dist, s.cornerA, s.cornerB, s.cornerFarB, s.cornerFarA, s.cornerC);
+        brick = bricks[n];
+        if (withinRange(light, brick)) {
+          brick.incHighlight(generateHighlight(light, brick, 80));
+          renderer.drawShadow(i, new Shadow(light, brick));
         }
       }
       results.push((function() {
         var m, ref2, results1;
         results1 = [];
         for (n = m = 0, ref2 = debris.length - 1; m <= ref2; n = m += 1) {
-          results1.push(debris[n].incDark(Math.distance(debris[n], this.lights[i])));
+          results1.push(debris[n].incHighlight(generateHighlight(light, debris[n], 50)));
         }
         return results1;
-      }).call(this));
+      })());
     }
     return results;
   };
