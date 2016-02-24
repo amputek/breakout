@@ -1,162 +1,112 @@
 class LightSource
-	constructor: (@x, @y, @radius, color) ->
-		@tempcanvas = document.createElement('canvas')
-		@tempcontext = @tempcanvas.getContext('2d')
-		@tempcanvas.width = lighting.canvas.width;
-		@tempcanvas.height = lighting.canvas.height;
-		@gradient = context.createRadialGradient(0,0,10, 0,0, @radius);
-
-
-		@gradient.addColorStop(0, 'rgba(255,220,160,1.0)');
-		@gradient.addColorStop(0.3, 'rgba(160,200,250,0.5)');
-		@gradient.addColorStop(1, 'rgba(0,0,0,0.0)');
-
-
-	draw: () ->
-		@tempcontext.clearRect(0,0,320,568);
-		@tempcontext.fillStyle = @gradient;
-		@tempcontext.save();
-		@tempcontext.translate( @x, @y );
-		solidCircle(@tempcontext, 0, 0, @radius );
-		@tempcontext.restore();
+	constructor: (@x, @y, @radius) ->
 
 
 class Lighting
 	constructor: () ->
-		@canvas = document.createElement('canvas')
-		@context = @canvas.getContext('2d')
-		@context.lineCap = 'square'
-		@canvas.width = 320;
-		@canvas.height = 568;
 		@lights = []
 
 	initLights: () ->
-		@lights.push new LightSource( 0, -1000, 100 )
-		@lights.push new LightSource( 0, 0, 200 )
-		# @lights.push new LightSource( 60,  650, 150, "red" )
-		# @lights.push new LightSource( 160 ,650, 150, "red" )
-		# @lights.push new LightSource( 260 ,650, 150, "red" )
+		@lights.push new LightSource( 0, -1000, 100)
+		# @lights.push new LightSource( 0, -1000, 200)
 
 
-	calculateCorners: ( source, center, limit, dist, ctx) ->
+	getShadowShape = ( source, object ) ->
 
-		if( dist > limit)
-			return
+		dist = Math.distance(source,object)
 
-		left = center.left
-		right = center.right
-		top = center.top
-		bottom = center.bottom
-		angle = Math.atan2( center.y - source.y, center.x - source.x)
-		ctx.strokeStyle = 'rgba(255,255,255,' + 1.0 / (dist*0.05) + ')'
-		ctx.lineWidth = 15.0 / (dist*0.2)
+		if( dist > source.radius)
+			return null
 
-		if( source.y < center.y and Math.abs(center.x - source.x) < center.width)
-			ex = left
-			ey = top
-			ex1 = right
-			ey1 = top
-			#strokedCircle( ctx, ex,ey,10 );
-			line( ctx, ex,ey,ex1,ey1)
-		#	console.log( ey );
-		else if( source.y > center.y and Math.abs(center.x - source.x) < center.width)
-			ex = left
-			ey = bottom
-			ex1 = right
-			ey1 = bottom
-			#console.log( ey );
-			line( ctx, ex,ey,ex1,ey1)
-		else if( source.x < center.x and Math.abs(center.y - source.y) < center.height)
-			ex = left
-			ey = bottom
-			ex1 = left
-			ey1 = top
-			line( ctx, ex,ey,ex1,ey1)
-		else if( source.x > center.x and Math.abs(center.y - source.y) < center.height)
-			ex = right
-			ey = bottom
-			ex1 = right
-			ey1 = top
-			line( ctx, ex,ey,ex1,ey1)
+		left = object.left
+		right = object.right
+		top = object.top
+		bottom = object.bottom
+
+		angle = Math.atan2( object.y - source.y, object.x - source.x)
+
+		cornerA = {x: 0, y: 0}
+		cornerB = {x: 0, y: 0}
+		cornerC = {}
+
+		if( source.y < object.y and Math.abs(object.x - source.x) < object.width)
+
+			cornerA = {x: object.left , y: object.top }
+			cornerB = {x: object.right, y: object.top }
+
+		else if( source.y > object.y and Math.abs(object.x - source.x) < object.width)
+
+			cornerA = {x: object.left , y: object.bottom }
+			cornerB = {x: object.right, y: object.bottom }
+
+		else if( source.x < object.x and Math.abs(object.y - source.y) < object.height)
+
+			cornerA = {x: object.left , y: object.bottom }
+			cornerB = {x: object.left , y: object.top }
+
+		else if( source.x > object.x and Math.abs(object.y - source.y) < object.height)
+
+			cornerA = {x: object.right, y: object.bottom }
+			cornerB = {x: object.right, y: object.top }
+
 		else if(angle > 0 and angle < Math.PI/2)
-			ex = left
-			ey = bottom
-			ex1 = right
-			ey1 = top
-			line( ctx, left,bottom,left,top)
-			line( ctx, left,top,right,top)
+
+			cornerA = {x: object.left, y: object.bottom }
+			cornerB = {x: object.right, y: object.top }
+			cornerC = {x: object.left, y: object.top }
+
 		else if(angle > Math.PI/2 and angle < Math.PI)
-			ex = left
-			ey = top
-			ex1 = right
-			ey1 = bottom
-			line( ctx, left,top,right,top)
-			line( ctx, right,top,right,bottom)
+
+			cornerA = {x: object.left, y: object.top }
+			cornerB = {x: object.right, y: object.bottom }
+			cornerC = {x: object.right, y: object.top }
+
 		else if(angle > -Math.PI and angle < -Math.PI/2)
-			ex = right
-			ey = top
-			ex1 = left
-			ey1 = bottom
-			line( ctx, right,top,right,bottom)
-			line( ctx, right,bottom,left,bottom)
+
+			cornerA = {x: object.right, y: object.top }
+			cornerB = {x: object.left, y: object.bottom }
+			cornerC = {x: object.right, y: object.bottom }
+
 		else if(angle > -Math.PI/2 and angle < 0)
-			ex = right
-			ey = bottom
-			ex1 = left
-			ey1 = top
-			line( ctx, right,bottom,left,bottom)
-			line( ctx, left,bottom,left,top)
 
-		newangle = Math.atan2( ey - source.y, ex - source.x );
-		fx = source.x + Math.cos( newangle ) * limit
-		fy = source.y + Math.sin( newangle ) * limit
-
-		newangle1 = Math.atan2( ey1 - source.y, ex1 - source.x );
-		fx1 = source.x + Math.cos( newangle1 ) * limit
-		fy1 = source.y + Math.sin( newangle1 ) * limit
-
-		drawShadow( ctx, ex, ey, ex1, ey1, fx1, fy1, fx, fy )
+			cornerA = {x: object.right, y: object.bottom }
+			cornerB = {x: object.left, y: object.top }
+			cornerC = {x: object.left, y: object.bottom }
 
 
-	drawShadow = ( ctx, ex, ey, ex1, ey1, fx1, fy1, fx, fy ) ->
-		ctx.beginPath()
-		ctx.moveTo(ex, ey);
-		ctx.lineTo(ex1,ey1)
-		ctx.lineTo(fx1,fy1)
-		ctx.lineTo(fx,fy)
+		newangle = Math.angle( cornerA, source )
+		cornerFarA = {x: source.x + Math.cos( newangle ) * source.radius, y: source.y + Math.sin( newangle ) * source.radius }
 
-		# lineargradient = ctx.createLinearGradient( center.x, center.y, (fx+fx1)/2, (fy+fy1)/2 );
-		# lineargradient.addColorStop(0, 'rgba(0,0,0,0.8)');
-		# lineargradient.addColorStop(1, 'rgba(0,0,0,0.0)');
-		# ctx.fillStyle = lineargradient;
-		ctx.fillStyle = '#000'
-		ctx.fill()
+		newangle1 = Math.angle( cornerB, source )
+		cornerFarB = {x: source.x + Math.cos( newangle1 ) * source.radius, y: source.y + Math.sin( newangle1 ) * source.radius }
 
-	light: ( bricks ) ->
+		return {dist:dist, cornerA:cornerA, cornerB:cornerB, cornerFarB:cornerFarB, cornerFarA:cornerFarA, cornerC:cornerC}
 
-		lighting.context.clearRect(0,0,320,568)
-		lighting.context.globalCompositeOperation = "lighter"
+	draw: ( renderer ) ->
+		renderer.drawLight( @lights )
+
+	drawLights: ( renderer ) ->
+		for i in [0..@lights.length-1] by 1
+			l = @lights[i]
+			renderer.drawLightGlow( i, l.x, l.y, l.radius, )
+
+	addShadowsToLights: ( renderer, player, bricks, debris ) ->
 
 		for i in [0..@lights.length-1] by 1
-			con = @lights[i].tempcontext;
-			@lights[i].draw();
 
-			dist = distance(ball.x,ball.y,player.x,player.y)
-			@calculateCorners( @lights[0], player, 1500, dist, con );
-
+			s = getShadowShape( @lights[i], player )
+			if( s != null)
+				renderer.drawShadow( i, s.dist, s.cornerA, s.cornerB, s.cornerFarB, s.cornerFarA, s.cornerC )
 
 			for n in [0..bricks.length-1] by 1
 				o = bricks[n]
-				if(o.type == "brick")
-					dist = distance( o.x, o.y, @lights[i].x, @lights[i].y )
-					o.incDark( dist );
-					@calculateCorners( @lights[i], o, @lights[i].radius, distance( o.x, o.y, @lights[i].x, @lights[i].y), con);
+				dist = Math.distance( o, @lights[i] )
+				o.incDark( dist );
+
+				s = getShadowShape( @lights[i], o )
+				if( s != null)
+					renderer.drawShadow( i, s.dist, s.cornerA, s.cornerB, s.cornerFarB, s.cornerFarA, s.cornerC )
+
 
 			for n in [0..debris.length-1] by 1
-				debris[n].incDark( distance( debris[n].x, debris[n].y, @lights[i].x, @lights[i].y))
-
-			lighting.context.drawImage( @lights[i].tempcanvas, 0, 0 )
-
-			# for i in [0..bricks.length-1] by 1
-			# 	if( bricks[i] instanceof ExplosiveBrick)
-			# 		bricks[i].drawGlow();
+				debris[n].incDark( Math.distance( debris[n], @lights[i] ) )

@@ -11,13 +11,19 @@ div{
 	padding:0;
 	margin:0;
 	border:none;
-	-webkit-user-select: none; 
+	-webkit-user-select: none;
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.6px;
 }
 
-#background {	
-	position: absolute;	
+#debug{
+	color: red;
+	position: absolute;
+	left: 150px;
+}
+
+#background {
+	position: absolute;
 	width:320;
 	height:568;
 	background-color: #000;
@@ -59,7 +65,7 @@ div{
 	margin-top: 60%;
 	overflow: visible;
 	white-space: nowrap;
-	height: 70px;	
+	height: 70px;
 	color: #fff;
 	font-size: 34px;
 	text-shadow: 0 0 20px #fff;
@@ -80,7 +86,7 @@ div{
 	border-top-color: rgba(255,255,255,0.3);
 
 	-webkit-animation: pulsate 2s ease-in-out;
-	-webkit-animation-iteration-count: infinite; 
+	-webkit-animation-iteration-count: infinite;
 }
 
 @-webkit-keyframes pulsate {
