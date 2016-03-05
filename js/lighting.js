@@ -15,12 +15,8 @@ LightSource = (function() {
 
 Shadow = (function() {
   function Shadow(source, object, optionalLimit) {
-    var angle, bottom, left, limit, newangle, newangle1, right, top;
+    var angle, limit, newangle, newangle1;
     this.dist = Math.distance(source, object);
-    left = object.left;
-    right = object.right;
-    top = object.top;
-    bottom = object.bottom;
     angle = Math.atan2(object.y - source.y, object.x - source.x);
     this.cornerA = {
       x: 0,
@@ -145,7 +141,7 @@ Lighting = (function() {
   }
 
   Lighting.prototype.initLights = function() {
-    return this.lights.push(new LightSource(0, -1000, 100, 1.0));
+    return this.lights.push(new LightSource(0, -1000, 200, 1.0));
   };
 
   Lighting.prototype.draw = function(renderer) {
@@ -174,11 +170,17 @@ Lighting = (function() {
   };
 
   generateHighlight = function(source, object, lum) {
-    return Math.round(lum * (1.0 - (Math.distance(source, object) / source.radius)));
+    var l;
+    l = lum * (1.0 - (Math.distance(source, object) / source.radius));
+    if (l < 0) {
+      l = 0;
+    }
+    return l;
   };
 
   Lighting.prototype.addShadowsToLights = function(renderer, player, bricks, debris) {
-    var brick, i, j, k, light, n, ref, ref1, results;
+    var brick, d, i, j, k, light, n, ref, ref1, results, shadowCount;
+    shadowCount = 0;
     results = [];
     for (i = j = 0, ref = this.lights.length - 1; j <= ref; i = j += 1) {
       light = this.lights[i];
@@ -188,15 +190,17 @@ Lighting = (function() {
       for (n = k = 0, ref1 = bricks.length - 1; k <= ref1; n = k += 1) {
         brick = bricks[n];
         if (withinRange(light, brick)) {
-          brick.incHighlight(generateHighlight(light, brick, 80));
           renderer.drawShadow(i, new Shadow(light, brick));
+          brick.incHighlight(generateHighlight(light, brick, 30));
+          shadowCount++;
         }
       }
       results.push((function() {
         var m, ref2, results1;
         results1 = [];
         for (n = m = 0, ref2 = debris.length - 1; m <= ref2; n = m += 1) {
-          results1.push(debris[n].incHighlight(generateHighlight(light, debris[n], 50)));
+          d = debris[n];
+          results1.push(d.incHighlight(generateHighlight(light, d, 130)));
         }
         return results1;
       })());

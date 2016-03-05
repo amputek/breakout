@@ -22,12 +22,14 @@ class Renderer
 	make = (x) ->
 		if( x < 0 )
 			x = 0
-		return x
+		if( x > 255)
+			x = 255
+		return Math.round(x)
 
 	rgba = (r,g,b,a) ->
 		if( a == undefined )
 			a = 1.0
-		return 'rgba(' + Math.round(make(r)) + ',' + Math.round(make(g)) + ',' + Math.round(make(b)) + ',' + a + ')'
+		return 'rgba(' + make(r) + ',' + make(g) + ',' + make(b) + ',' + a + ')'
 
 	constructor: ( canvas, w, h ) ->
 
@@ -124,12 +126,13 @@ class Renderer
 	drawPaddle : ( x, y, w, h ) ->
 		@context.fillStyle = 'rgba(50,50,50,1.0)'
 		@context.beginPath();
-		@context.rect( x - w, y - h/2, w*2, h)
+		@context.rect( x - w/2, y - h/2, w, h)
 		@context.fill();
 
-	drawBrick : (type,left,top,size,dark,count) ->
+	drawBrick : (type,left,top,size,highlight,count) ->
+		# highlight = 10
 		if(type == "brick")
-			@context.fillStyle = 'rgba(' + dark + ',' + (dark+5) + ',' + (dark+5) + ',1.0)'
+			@context.fillStyle = rgba(highlight+6,highlight+6,highlight+16)
 			@context.beginPath();
 			@context.rect(left, top, size*2, size*2 )
 			@context.fill();
@@ -140,8 +143,8 @@ class Renderer
 			right = left+size*2
 			bottom = top+size*2
 
-			@context.strokeStyle = rgba( 10+dark*3+p , dark*1.5   , dark*0.0 )
-			@context.fillStyle   = rgba( 10+dark*1.5 , dark*0.75  , dark*0.1 )
+			@context.strokeStyle = rgba( 10+highlight*3+p , highlight*1.5   , highlight*0.0 )
+			@context.fillStyle   = rgba( 10+highlight*1.5 , highlight*0.75  , highlight*0.1 )
 			@context.lineWidth = 2.0;
 
 			@context.beginPath();
@@ -151,6 +154,9 @@ class Renderer
 			line(@context, left+3, top+3, right-3, bottom-3)
 			line(@context, right-3, top+3, left+3, bottom-3)
 
+
+
+
 	drawExplosion: (x,y,life) ->
 		@context.lineWidth = 2.0;
 		@context.strokeStyle = 'rgba(255,' + (255-life*3) + ',0,' + (1.0 - (life*0.02)) + ')'
@@ -158,8 +164,8 @@ class Renderer
 		strokedCircle( @context, x, y, life )
 		solidCircle( @context, x, y, life )
 
-	drawDebris: ( x, y, radius, angle, dark ) ->
-		@context.fillStyle = rgba( dark, dark+5, dark+5 )
+	drawDebris: ( x, y, radius, angle, highlight ) ->
+		@context.fillStyle = rgba( highlight+6, highlight+6, highlight+16 )
 		@context.beginPath();
 		@context.save();
 		@context.translate( x, y )

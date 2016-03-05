@@ -109,6 +109,24 @@ Physics = (function() {
     }
   };
 
+  Physics.prototype.debrisCollision = function(debris, player, dt) {
+    var d, i, j, pt, ref, results;
+    results = [];
+    for (i = j = 0, ref = debris.collection.length - 1; j <= ref; i = j += 1) {
+      d = debris.collection[i];
+      pt = ballIntercept(d, player, d.vx * dt, d.vy * dt);
+      if (pt !== null) {
+        d.y = pt.y;
+        d.vy = -d.vy * 0.5;
+        d.vx += player.vx * 0.9;
+        results.push(d.vx *= 0.9);
+      } else {
+        results.push(void 0);
+      }
+    }
+    return results;
+  };
+
   return Physics;
 
 })();

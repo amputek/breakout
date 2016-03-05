@@ -1,4 +1,4 @@
-var Ball, Brick, BricksManager, Debris, DebrisManager, Explosion, ExplosionsManager, ExplosiveBrick, Game, Manager, Player, draw, game, mouseDown, mouseXY, mx, my,
+var Ball, Brick, BricksManager, Debris, DebrisManager, Explosion, ExplosionsManager, ExplosiveBrick, Game, GameObject, Manager, Player, draw, game, mouseDown, mouseXY, mx, my,
   extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   hasProp = {}.hasOwnProperty;
 
@@ -73,19 +73,20 @@ Game = (function() {
     lighting.drawLights(renderer);
     lighting.addShadowsToLights(renderer, player, bricks.collection, debris.collection);
     lighting.draw(renderer);
-    bricks.update();
     bricks.draw(renderer);
+    player.draw(renderer);
+    debris.draw(renderer);
+    bricks.update();
     physics.wallCollision(ball, ball.vx * dt, ball.vy * dt);
     physics.paddleCollision(ball, player, ball.vx * dt, ball.vy * dt);
     physics.bricksCollision(ball, bricks, ball.vx * dt, ball.vy * dt);
+    physics.debrisCollision(debris, player, dt);
     ball.update(dt);
     ball.draw(renderer);
     lighting.lights[0].x = ball.x;
     lighting.lights[0].y = ball.y;
     player.update();
-    player.draw(renderer);
     debris.update(dt);
-    debris.draw(renderer);
     explosions.update();
     explosions.draw(renderer);
     return stats.end();
@@ -101,8 +102,8 @@ Game = (function() {
     angle = Math.atan2(brick.y - source.y, brick.x - source.x);
     results = [];
     for (n = j = 0; j <= 4; n = j += 1) {
-      vx = Math.cos(angle) * 20 + Math.randomFloat(-5, 5);
-      vy = Math.sin(angle) * 20 + Math.randomFloat(-5, 5);
+      vx = Math.cos(angle) * Math.randomFloat(10, 140) + Math.randomFloat(-5, 5);
+      vy = Math.sin(angle) * Math.randomFloat(10, 140) + Math.randomFloat(-5, 5);
       results.push(debris.add(new Debris(brick.x + Math.randomFloat(-blockSize, blockSize), brick.y + Math.randomFloat(-blockSize, blockSize), vx, vy)));
     }
     return results;
@@ -134,7 +135,7 @@ Manager = (function() {
     return results;
   };
 
-  Manager.prototype.draw = function() {
+  Manager.prototype.draw = function(renderer) {
     var i, j, ref, results;
     results = [];
     for (i = j = 0, ref = this.collection.length - 1; j <= ref; i = j += 1) {
@@ -327,7 +328,7 @@ DebrisManager = (function(superClass) {
     for (i = j = 0, ref = this.collection.length - 1; j <= ref; i = j += 1) {
       e = this.collection[i];
       renderer.drawDebris(e.x, e.y, e.radius, e.angle, e.highlight);
-      results.push(e.highlight = 10);
+      results.push(e.highlight = 0);
     }
     return results;
   };
@@ -336,68 +337,83 @@ DebrisManager = (function(superClass) {
 
 })(Manager);
 
-Player = (function() {
+GameObject = (function() {
+  function GameObject() {
+    this.highlight = 0;
+  }
+
+  GameObject.prototype.incHighlight = function(h) {
+    return this.highlight += h;
+  };
+
+  GameObject.prototype.draw = function(renderer) {
+    return this.highlight = 0;
+  };
+
+  return GameObject;
+
+})();
+
+Player = (function(superClass) {
+  extend(Player, superClass);
+
   function Player() {
+    Player.__super__.constructor.call(this);
     this.x = 100;
     this.y = 550;
-    this.width = 100;
+    this.width = 200;
     this.height = 10;
-    this.left = this.x - 50;
-    this.right = this.x + 50;
+    this.left = this.x - this.width / 2;
+    this.right = this.x + this.width / 2;
     this.top = this.y - this.height / 2;
     this.bottom = this.y + this.height / 2;
     this.vx = 0;
   }
 
   Player.prototype.draw = function(renderer) {
-    return renderer.drawPaddle(this.x, this.y, this.width, this.height);
+    return renderer.drawPaddle(this.x, this.y, this.width, this.height, this.highlight);
   };
 
   Player.prototype.update = function() {
     this.vx = mx - this.x;
     this.x = mx;
-    this.left = this.x - this.width;
-    return this.right = this.x + this.width;
+    this.left = this.x - this.width / 2;
+    return this.right = this.x + this.width / 2;
   };
 
   return Player;
 
-})();
+})(GameObject);
 
-Debris = (function() {
+Debris = (function(superClass) {
+  extend(Debris, superClass);
+
   function Debris(x1, y1, vx1, vy1) {
     this.x = x1;
     this.y = y1;
     this.vx = vx1;
     this.vy = vy1;
+    Debris.__super__.constructor.call(this);
     this.radius = Math.randomFloat(0, 4);
-    this.highlight = 10;
-    this.vr = Math.randomFloat(-222, 222);
+    this.vr = Math.randomFloat(-9, 9);
     this.angle = 0;
   }
-
-  Debris.prototype.incHighlight = function(h) {
-    return this.highlight += h;
-  };
 
   Debris.prototype.update = function(dt) {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vx *= 0.98;
-    this.vy *= 0.98;
-    this.angle += this.vr;
-    return this.vy += 1.5;
+    this.vx *= 1.0 - dt * 0.5;
+    this.vy *= 1.0 - dt * 0.5;
+    this.vr *= 1.0 - dt * 0.5;
+    this.angle += this.vr * dt;
+    return this.vy += 35 * dt;
   };
 
   return Debris;
 
-})();
+})(GameObject);
 
 Ball = (function() {
-  var speedMod;
-
-  speedMod = 1.0;
-
   function Ball() {
     this.x = 200;
     this.y = 400;
@@ -407,8 +423,8 @@ Ball = (function() {
   }
 
   Ball.prototype.update = function(dt) {
-    this.x += this.vx * dt * speedMod;
-    return this.y += this.vy * dt * speedMod;
+    this.x += this.vx * dt;
+    return this.y += this.vy * dt;
   };
 
   Ball.prototype.draw = function(renderer) {
@@ -430,11 +446,13 @@ Ball = (function() {
 
 })();
 
-Brick = (function() {
+Brick = (function(superClass) {
+  extend(Brick, superClass);
+
   function Brick(x1, y1, blockSize) {
     this.x = x1;
     this.y = y1;
-    this.highlight = 0;
+    Brick.__super__.constructor.call(this);
     this.left = this.x - blockSize;
     this.right = this.x + blockSize;
     this.top = this.y - blockSize;
@@ -447,13 +465,9 @@ Brick = (function() {
 
   Brick.prototype.update = function() {};
 
-  Brick.prototype.incHighlight = function(h) {
-    return this.highlight += h;
-  };
-
   return Brick;
 
-})();
+})(GameObject);
 
 ExplosiveBrick = (function(superClass) {
   extend(ExplosiveBrick, superClass);

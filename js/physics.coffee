@@ -74,3 +74,13 @@ class Physics
 				bricks.markBrickForDeath( brick, bal, 0 )
 				return
 		# return null
+
+	debrisCollision: ( debris, player, dt ) ->
+		for i in [0..debris.collection.length-1] by 1
+			d = debris.collection[i]
+			pt = ballIntercept( d, player, d.vx * dt, d.vy * dt )
+			if(pt != null)
+				d.y = pt.y
+				d.vy = -d.vy*0.5
+				d.vx += player.vx * 0.9
+				d.vx *= 0.9

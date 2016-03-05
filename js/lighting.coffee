@@ -6,11 +6,6 @@ class Shadow
 	constructor: ( source, object, optionalLimit ) ->
 		@dist = Math.distance(source,object)
 
-		left = object.left
-		right = object.right
-		top = object.top
-		bottom = object.bottom
-
 		angle = Math.atan2( object.y - source.y, object.x - source.x)
 
 		@cornerA = {x: 0, y: 0}
@@ -79,7 +74,7 @@ class Lighting
 		@lights = []
 
 	initLights: () ->
-		@lights.push new LightSource( 0, -1000, 100, 1.0)
+		@lights.push new LightSource( 0, -1000, 200, 1.0)
 		# @lights.push new LightSource( 186, 20, 300, 1.0)
 		# @lights.push new LightSource( 20,  20, 300, 1.0)
 
@@ -98,9 +93,19 @@ class Lighting
 		return Math.distance( source, object ) < source.radius
 
 	generateHighlight = ( source, object, lum ) ->
-		return Math.round( lum *  (1.0 - ( Math.distance(source, object) / source.radius ) ) )
+		l = lum *  (1.0 - ( Math.distance(source, object) / source.radius ) );
+		if(l < 0)
+			l = 0
+		return l
+
+
+
+	#It's kind of useful having the highlight separated from the object. BUT it means having to pull out the object's left/top/right/bottom variables from here
+	#ALSO. this method doesn't work for DEBRIS. each debris needs to be highlighted indivudally as its drawn, rather than all highlighted at the same time after
 
 	addShadowsToLights: ( renderer, player, bricks, debris ) ->
+
+		shadowCount = 0;
 
 		for i in [0..@lights.length-1] by 1
 
@@ -109,12 +114,29 @@ class Lighting
 			if( withinRange( light, player ) )
 				renderer.drawShadow( i, new Shadow( light, player, 1500 ) )
 
+
 			for n in [0..bricks.length-1] by 1
 				brick = bricks[n]
-
 				if( withinRange( light, brick ) )
-					brick.incHighlight( generateHighlight( light, brick, 80 ) )
 					renderer.drawShadow( i, new Shadow( light, brick ) )
+					brick.incHighlight( generateHighlight( light, brick, 30 ) )
+					shadowCount++
+
+
+			# if( withinRange( light, player ) )
+				# renderer.drawHighlight( i, player.left, player.top, player.right, player.bottom, generateHighlight( light, player, 0.18 ) )
+
+
+			# for n in [0..bricks.length-1] by 1
+				# brick = bricks[n]
+
+				# if( withinRange( light, brick ) )
+					# renderer.drawHighlight( i, brick.left, brick.top, brick.right, brick.bottom, generateHighlight( light, brick, 0.18 ) )
+
 
 			for n in [0..debris.length-1] by 1
-				debris[n].incHighlight( generateHighlight( light, debris[n], 50 ) )
+				d = debris[n]
+				d.incHighlight( generateHighlight( light, d, 130 ) )
+				# renderer.highlightDebris( i, debris[n].x, debris[n].y, debris[n].radius, debris[n].angle, generateHighlight( light, debris[n], 0.56 ) )
+
+		# console.log("Shaodw Count: " + shadowCount)

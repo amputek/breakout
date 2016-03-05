@@ -30,14 +30,17 @@ Renderer = (function() {
     if (x < 0) {
       x = 0;
     }
-    return x;
+    if (x > 255) {
+      x = 255;
+    }
+    return Math.round(x);
   };
 
   rgba = function(r, g, b, a) {
     if (a === void 0) {
       a = 1.0;
     }
-    return 'rgba(' + Math.round(make(r)) + ',' + Math.round(make(g)) + ',' + Math.round(make(b)) + ',' + a + ')';
+    return 'rgba(' + make(r) + ',' + make(g) + ',' + make(b) + ',' + a + ')';
   };
 
   function Renderer(canvas, w, h) {
@@ -133,14 +136,14 @@ Renderer = (function() {
   Renderer.prototype.drawPaddle = function(x, y, w, h) {
     this.context.fillStyle = 'rgba(50,50,50,1.0)';
     this.context.beginPath();
-    this.context.rect(x - w, y - h / 2, w * 2, h);
+    this.context.rect(x - w / 2, y - h / 2, w, h);
     return this.context.fill();
   };
 
-  Renderer.prototype.drawBrick = function(type, left, top, size, dark, count) {
+  Renderer.prototype.drawBrick = function(type, left, top, size, highlight, count) {
     var bottom, p, right;
     if (type === "brick") {
-      this.context.fillStyle = 'rgba(' + dark + ',' + (dark + 5) + ',' + (dark + 5) + ',1.0)';
+      this.context.fillStyle = rgba(highlight + 6, highlight + 6, highlight + 16);
       this.context.beginPath();
       this.context.rect(left, top, size * 2, size * 2);
       this.context.fill();
@@ -149,8 +152,8 @@ Renderer = (function() {
       p = Math.round(Math.sin(count) * 10);
       right = left + size * 2;
       bottom = top + size * 2;
-      this.context.strokeStyle = rgba(10 + dark * 3 + p, dark * 1.5, dark * 0.0);
-      this.context.fillStyle = rgba(10 + dark * 1.5, dark * 0.75, dark * 0.1);
+      this.context.strokeStyle = rgba(10 + highlight * 3 + p, highlight * 1.5, highlight * 0.0);
+      this.context.fillStyle = rgba(10 + highlight * 1.5, highlight * 0.75, highlight * 0.1);
       this.context.lineWidth = 2.0;
       this.context.beginPath();
       this.context.rect(left, top, size * 2, size * 2);
@@ -169,8 +172,8 @@ Renderer = (function() {
     return solidCircle(this.context, x, y, life);
   };
 
-  Renderer.prototype.drawDebris = function(x, y, radius, angle, dark) {
-    this.context.fillStyle = rgba(dark, dark + 5, dark + 5);
+  Renderer.prototype.drawDebris = function(x, y, radius, angle, highlight) {
+    this.context.fillStyle = rgba(highlight + 6, highlight + 6, highlight + 16);
     this.context.beginPath();
     this.context.save();
     this.context.translate(x, y);

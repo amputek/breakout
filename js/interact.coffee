@@ -1,7 +1,5 @@
 
 game = null
-
-
 mx = 0
 my = 0
 
@@ -60,6 +58,7 @@ class Game
 
 		newTime = Date.now()
 		dt = (newTime - currentTime) / 100
+		# dt *= 0.1
 		currentTime = newTime
 
 		renderer.drawBackground()
@@ -73,27 +72,35 @@ class Game
 		lighting.addShadowsToLights( renderer, player, bricks.collection, debris.collection )
 		lighting.draw( renderer )
 
-		bricks.update( )
+
 		bricks.draw( renderer )
+		player.draw( renderer )
+
+		debris.draw( renderer )
+
+
+		bricks.update( )
+
 
 		physics.wallCollision( ball, ball.vx * dt, ball.vy * dt )
 		physics.paddleCollision( ball, player, ball.vx * dt, ball.vy * dt )
 		physics.bricksCollision( ball, bricks, ball.vx * dt, ball.vy * dt )
+		physics.debrisCollision( debris, player, dt )
 
 		ball.update( dt )
 		ball.draw( renderer )
 		# ball.x = mx
 		# ball.y = my
-
+#
 		lighting.lights[0].x = ball.x;
 		lighting.lights[0].y = ball.y;
 
 
 		player.update()
-		player.draw( renderer );
+
 
 		debris.update( dt )
-		debris.draw( renderer )
+
 
 		explosions.update()
 		explosions.draw( renderer )
@@ -107,8 +114,8 @@ class Game
 	createDebris: (brick,source,blockSize) ->
 		angle = Math.atan2( brick.y - source.y, brick.x - source.x )
 		for n in [0..4] by 1
-			vx = Math.cos(angle) * 20 + Math.randomFloat(-5,5)
-			vy = Math.sin(angle) * 20 + Math.randomFloat(-5,5)
+			vx = Math.cos(angle) * Math.randomFloat(10,140) + Math.randomFloat(-5,5)
+			vy = Math.sin(angle) * Math.randomFloat(10,140) + Math.randomFloat(-5,5)
 			debris.add new Debris( brick.x + Math.randomFloat(-blockSize, blockSize), brick.y + Math.randomFloat(-blockSize, blockSize), vx, vy );
 
 
@@ -129,7 +136,7 @@ class Manager
 		for i in [0..@collection.length-1] by 1
 			@collection[i].update( dt )
 
-	draw: () ->
+	draw: ( renderer ) ->
 		for i in [0..@collection.length-1] by 1
 			@collection[i].draw()
 
@@ -169,16 +176,6 @@ class BricksManager extends Manager
 						@collection.push new ExplosiveBrick( x * gap, y * gap, @blockSize )
 					else
 						@collection.push new Brick( x * gap, y * gap, @blockSize )
-
-		# for x in [3..48] by 1
-		# 	for y in [3..24] by 1
-		# 		if( x % 7 != 0 && x % 7 != 1 )
-		# 			@brickCount++;
-		# 			if( Math.randomFloat(0,1) < 0.05 )
-		# 				@collection.push new ExplosiveBrick( x * gap, y * gap, @blockSize )
-		# 			else
-		# 				@collection.push new Brick( x * gap, y * gap, @blockSize )
-		#
 
 
 	draw: ( renderer ) ->
@@ -248,60 +245,57 @@ class DebrisManager extends Manager
 		for i in [0..@collection.length-1] by 1
 			e = @collection[i]
 			renderer.drawDebris( e.x, e.y, e.radius, e.angle, e.highlight )
-			e.highlight = 10
+			e.highlight = 0
 
-
-
-class Player
+class GameObject
 	constructor: () ->
+		@highlight = 0
+
+	incHighlight: (h) ->
+		@highlight += h
+
+	draw: (renderer) ->
+		@highlight = 0
+
+class Player extends GameObject
+	constructor: () ->
+		super()
 		@x = 100;
 		@y = 550;
-		@width = 100;
+		@width = 200;
 		@height = 10;
-		@left = @x - 50;
-		@right = @x + 50;
+		@left = @x - @width/2;
+		@right = @x + @width/2;
 		@top = @y - @height/2;
 		@bottom = @y + @height/2;
 		@vx = 0;
 
 	draw: ( renderer ) ->
-		renderer.drawPaddle( @x, @y, @width, @height )
+		renderer.drawPaddle( @x, @y, @width, @height, @highlight )
 
 	update: () ->
 		@vx = mx-@x;
 		@x = mx;
-		@left = @x - @width;
-		@right = @x + @width;
+		@left = @x - @width/2;
+		@right = @x + @width/2;
 
-class Debris
+class Debris extends GameObject
 	constructor: (@x, @y, @vx, @vy) ->
+		super()
 		@radius = Math.randomFloat(0,4)
-		@highlight = 10;
-		@vr = Math.randomFloat(-222, 222)
+		@vr = Math.randomFloat(-9,9)
 		@angle = 0;
-
-
-	incHighlight: ( h ) ->
-		@highlight += h;
 
 	update: ( dt ) ->
 		@x += (@vx*dt);
 		@y += (@vy*dt);
-		@vx *= 0.98;
-		@vy *= 0.98;
-		@angle += @vr;
-		@vy += 1.5;
-
-		# pt = physics.ballIntercept( @, player, @vx*dt, @vy*dt )
-		# if(pt != null)
-		# 	@y = pt.y
-		# 	@vy = -@vy*0.5
-		# 	@vx =
-		# 	@vx += player.vx * 0.5;
+		@vx *= (1.0 - dt * 0.5)
+		@vy *= (1.0 - dt * 0.5)
+		@vr *= (1.0 - dt * 0.5)
+		@angle += (@vr*dt);
+		@vy += (35*dt)
 
 class Ball
-
-	speedMod = 1.0
 
 	constructor: () ->
 		@x = 200;
@@ -311,8 +305,8 @@ class Ball
 		@radius = 5;
 
 	update: ( dt ) ->
-		@x += @vx * dt * speedMod;
-		@y += @vy * dt * speedMod;
+		@x += @vx * dt
+		@y += @vy * dt
 
 	draw: ( renderer ) ->
 		renderer.drawBall( @x, @y, @radius )
@@ -326,9 +320,9 @@ class Ball
 			@y = newpos
 
 
-class Brick
+class Brick extends GameObject
 	constructor:( @x, @y, blockSize ) ->
-		@highlight = 0;
+		super()
 		@left = @x-blockSize;
 		@right = @x+blockSize;
 		@top = @y-blockSize;
@@ -339,9 +333,6 @@ class Brick
 		@markedForDeath = false
 
 	update: () ->
-
-	incHighlight: ( h ) ->
-		@highlight += h;
 
 class ExplosiveBrick extends Brick
 	constructor:(@x, @y, blockSize) ->
